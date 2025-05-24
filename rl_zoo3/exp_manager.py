@@ -52,6 +52,8 @@ from rl_zoo3.callbacks import SaveVecNormalizeCallback, TrialEvalCallback
 from rl_zoo3.hyperparams_opt import HYPERPARAMS_CONVERTER, HYPERPARAMS_SAMPLER
 from rl_zoo3.utils import ALGOS, get_callback_list, get_class_by_name, get_latest_run_id, get_wrapper_class, linear_schedule
 
+import custom_environment.curriculum
+
 
 class ExperimentManager:
     """
@@ -190,6 +192,9 @@ class ExperimentManager:
         )
         self.params_path = f"{self.save_path}/{self.env_name}"
 
+        ################################### HACK ################################
+        self.curriculum = custom_environment.curriculum.CurriculumHandler()
+
     def setup_experiment(self) -> Optional[tuple[BaseAlgorithm, dict[str, Any]]]:
         """
         Read hyperparameters, pre-process them (create schedules, wrappers, callbacks, action noise objects)
@@ -253,6 +258,8 @@ class ExperimentManager:
             )
 
         try:
+            # TODO HACK wollte dass tb graf weiterführt h, hat noch nicht funktioniert
+            # kwargs["reset_num_timesteps"] = True
             model.learn(self.n_timesteps, **kwargs)
         except KeyboardInterrupt:
             # this allows to save the model when interrupting training
@@ -558,15 +565,27 @@ class ExperimentManager:
             if self.verbose > 0:
                 print("Creating test environment")
 
+            eval_env = self.create_envs(self.n_eval_envs, eval_env=True)
+
+            # HACK
+            curriculum_callback = custom_environment.curriculum.CurriculumCallback(
+                self.curriculum,
+                # n_eval_episodes=self.n_eval_episodes,
+                # eval_freq=self.eval_freq,
+                # deterministic=self.deterministic_eval,
+            )
+
+
             save_vec_normalize = SaveVecNormalizeCallback(save_freq=1, save_path=self.params_path)
             eval_callback = EvalCallback(
-                self.create_envs(self.n_eval_envs, eval_env=True),
+                eval_env,
                 callback_on_new_best=save_vec_normalize,
                 best_model_save_path=self.save_path,
                 n_eval_episodes=self.n_eval_episodes,
                 log_path=self.save_path,
                 eval_freq=self.eval_freq,
                 deterministic=self.deterministic_eval,
+                callback_after_eval=curriculum_callback,
             )
 
             self.callbacks.append(eval_callback)
@@ -659,7 +678,23 @@ class ExperimentManager:
         # when the registry was modified with `--gym-packages`
         # See https://github.com/HumanCompatibleAI/imitation/pull/160
         def make_env(**kwargs) -> gym.Env:
-            return spec.make(**kwargs)
+            # return spec.make(**kwargs)
+            kwargs['curriculum'] = self.curriculum
+            env = spec.make(**kwargs)
+
+            #################################### HACK ##############################
+            # base_env = env
+            # while hasattr(base_env, "env"):
+            #     base_env = base_env.env
+            #
+            # # Inject curriculum into the base env
+            # if hasattr(base_env, "curriculum"):
+            #     base_env.curriculum = self.curriculum
+            #     print(f"[Rank {kwargs.get('rank', 'N/A')}] Injected curriculum into env")
+
+            # if hasattr(env, "curriculum"):
+            #     env.curriculum = self.curriculum  # HACK
+            return env
 
         env_kwargs = self.eval_env_kwargs if eval_env else self.env_kwargs
 
