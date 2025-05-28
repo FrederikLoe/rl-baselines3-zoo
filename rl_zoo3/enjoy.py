@@ -73,6 +73,14 @@ def enjoy() -> None:  # noqa: C901
         default=False,
         help="if toggled, display a progress bar using tqdm and rich",
     )
+
+    parser.add_argument(
+        "--model-path", type=str,
+        nargs="+",
+        default=[],
+        help="Additional external Gym environment package modules to import",
+    )
+
     args = parser.parse_args()
 
     # Going through custom gym packages to let them register in the global registory
@@ -121,6 +129,8 @@ def enjoy() -> None:  # noqa: C901
                 args.load_last_checkpoint,
             )
 
+    if args.model_path:
+        model_path = args.model_path[0]
     print(f"Loading {model_path}")
 
     # Off-policy algorithm only support one env for now
