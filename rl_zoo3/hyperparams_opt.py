@@ -55,8 +55,8 @@ def convert_onpolicy_params(sampled_params: dict[str, Any]) -> dict[str, Any]:
 def convert_offpolicy_params(sampled_params: dict[str, Any]) -> dict[str, Any]:
     hyperparams = sampled_params.copy()
 
-    hyperparams["gamma"] = 1 - sampled_params["one_minus_gamma"]
-    del hyperparams["one_minus_gamma"]
+    # hyperparams["gamma"] = 1 - sampled_params["one_minus_gamma"]
+    # del hyperparams["one_minus_gamma"]
 
     net_arch = sampled_params["net_arch"]
     del hyperparams["net_arch"]
@@ -261,7 +261,7 @@ def sample_sac_params(trial: optuna.Trial, n_actions: int, n_envs: int, addition
     :param trial:
     :return:
     """
-    one_minus_gamma = trial.suggest_float("one_minus_gamma", 0.0001, 0.03, log=True)
+    # one_minus_gamma = trial.suggest_float("one_minus_gamma", 0.0001, 0.03, log=True)
     # From 2**5=32 to 2**11=2048
     batch_size_pow = trial.suggest_int("batch_size_pow", 2, 11)
 
@@ -274,11 +274,11 @@ def sample_sac_params(trial: optuna.Trial, n_actions: int, n_envs: int, addition
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
     # activation_fn = trial.suggest_categorical('activation_fn', [nn.Tanh, nn.ReLU, nn.ELU, nn.LeakyReLU])
 
-    trial.set_user_attr("gamma", 1 - one_minus_gamma)
+    # trial.set_user_attr("gamma", 1 - one_minus_gamma)
     trial.set_user_attr("batch_size", 2**batch_size_pow)
 
     hyperparams = {
-        "one_minus_gamma": one_minus_gamma,
+        # "one_minus_gamma": one_minus_gamma,
         "learning_rate": learning_rate,
         "batch_size_pow": batch_size_pow,
         "train_freq": train_freq,
